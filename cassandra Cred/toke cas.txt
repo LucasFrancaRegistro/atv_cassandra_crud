@@ -1,0 +1,8 @@
+Client ID
+GFjvZcBUJAGwiEYkudQteHmr
+
+Client Secret
+60FZlJDcW7_dngTZ9LMJj60mH7x_,QuFRUy1A7jlAF3lTR785xszuyx,o8vzZnBcPTdZIQpeCZYLq-5B18W-i4CbJRRTtUAS-8vYZA_TbzQRfrQQrzHvM6G_XIBU8N_A
+
+Token
+AstraCS:GFjvZcBUJAGwiEYkudQteHmr:023d732bd2d579be2e1ac0619f2c1a78ff602babe9fab444bae48de0c07ab880
