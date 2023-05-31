@@ -3,6 +3,14 @@ import pickle
 from cassandra_connect import cluster
 
 session = cluster.connect()
+session.execute(''' 
+CREATE TABLE IF NOT EXISTS mercadolivre.usuario (
+nome text,
+cpf text,
+email text,
+
+)
+ ''')
 
 
 def createEndereco():
