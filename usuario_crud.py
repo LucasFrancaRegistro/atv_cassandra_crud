@@ -1,17 +1,9 @@
-import pymongo
+
 import pickle
-client = pymongo.MongoClient("mongodb+srv://programa:o5ma5JcTMMNPbydk@cluster0.ephuxat.mongodb.net/?retryWrites=true&w=majority")
-database = client.test
-import redis
-conR = redis.Redis(host='redis-10721.c261.us-east-1-4.ec2.cloud.redislabs.com',
-                  port=10721,
-                  password='123senha')
+from cassandra_connect import cluster
 
+session = cluster.connect()
 
-#print(db)
-
-global db
-db = client.mercadolivre
 
 def createEndereco():
     rua =  input('Nome da rua: ')
@@ -27,7 +19,7 @@ def createEndereco():
     return endereco
 
 def updateEndereco(usuario):
-    col = db.usuario
+
     enderecos = usuario["endereço"]
     print('''O que deseja fazer?
     1:  Atualizar endereço
@@ -54,8 +46,6 @@ def updateEndereco(usuario):
 
 
 def insertUsuario():
-    global db
-    col = db.usuario
     nome = input('Nome do usuario: ')
     email = input('Email do usuario: ')
     cpf = input('Cpf do usuario: ')
@@ -71,7 +61,7 @@ def insertUsuario():
         'endereço': enderecos,
         'favoritos': []
         }
-    x = col.insert_one(doc)
+    session.execute(" INSERT INTO mercadolivre (cpf, nome, email, )")
     print(x.inserted_id)
 
 def sortUsuario():
