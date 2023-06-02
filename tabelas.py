@@ -19,6 +19,7 @@ id_produto uuid
 
 session.execute(''' 
 CREATE TABLE IF NOT EXISTS mercadolivre.endereco (
+id uuid,
 rua text,
 bairro text,
 numero text,
