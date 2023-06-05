@@ -108,23 +108,15 @@ def updateFavorito(usuario):
     favoritos = usuario["favoritos"]
     print('''O que deseja fazer?
     1:  Adicionar aos favoritos
-    2:  Adicionar aos favoritos redis
-    3:  Remover dos favoritos''')
+    2:  Remover dos favoritos''')
     escolha = input('Escolha uma opção: ')
     if escolha == '1':
         produtos = search(sortProduto())
-        favoritos.append(produtos[int(input("escolha o produto que quer adicionar: "))])
+        produto = (produtos[int(input("escolha o produto que quer adicionar: "))])
+        session.execute(" INSERT INTO favoritos VALUES ")
     elif escolha == '2':
-        if conR.exists(usuario["email"]+"-endereco") < 1:
-            conR.delete(usuario["email"]+"-endereco")
-        produto = search(sortProduto())[int(input("Escolha o produto para adicionar aso favoritos: "))]
-        conR.lpush(usuario["email"]+"-endereco", pickle.dumps(produto))
-    elif escolha == '3':
         for index in range(len(favoritos)):
             print(str(index) + ':' + str(favoritos[index]))
         favorito = favoritos[(int(input("Escolha o produto para remover: ")))]
         session.execute("DELETE FROM favoritos WHERE id=s%", (favorito.id))
-    query = { "_id": usuario["_id"]}
-    toUpdate = {"$set":{ "favoritos": favoritos}}
-    col.update_one(query, toUpdate)
 
