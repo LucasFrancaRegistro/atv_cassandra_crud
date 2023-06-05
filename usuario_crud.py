@@ -10,11 +10,11 @@ def createEndereco(email):
     bairro = input('Nome do bairro: ')
     numero = input('Numero da residencia: ')
     complemento = input('Complemento (opcional): ')
-    session.execute("INSERT INTO endereco (id, email, rua, bairro, numero, complemento) VALUES (%s, %s, %s, %s, %s, %s)", (uuid.uuid1(), email, rua, bairro, numero, complemento))
+    session.execute("INSERT INTO endereco (id, email_residente, rua, bairro, numero, complemento) VALUES (%s, %s, %s, %s, %s, %s)", (uuid.uuid1(), email, rua, bairro, numero, complemento))
 
 def updateEndereco(usuario):
 
-    enderecos = usuario["endereço"]
+    enderecos = session.execute(" SELECT * FROM endereco WHERE email_residente=%s", (usuario.email))
     print('''O que deseja fazer?
     1:  Atualizar endereço
     2:  Adicionar endereço
@@ -24,18 +24,16 @@ def updateEndereco(usuario):
         for index in range(len(enderecos)):
             print(str(index) + ':' + str(enderecos[index]))
         enderecoVelho = int(input('Escolha o endereço a atualizar: '))
-        enderecoNovo = createEndereco()
+        enderecoNovo = createEndereco(usuario.email)
         enderecos[enderecoVelho] = enderecoNovo
     elif escolha == '2':
-        enderecoNovo = createEndereco()
-        enderecos.append(enderecoNovo)
+        createEndereco(usuario.email)   
     elif escolha == '3':
         for index in range(len(enderecos)):
             print(str(index) + ':' + str(enderecos[index]))
-        enderecos.pop(int(input('Escolha o endereço a deletar: ')))
-    query = { "_id": usuario["_id"]}
-    toUpdate = {"$set": { "endereço": enderecos}}
-    col.update_one(query, toUpdate)
+        session.execute(" DELETE FROM endereco WHERE id=", (enderecos[index].id))
+    
+
 
 
 
@@ -54,14 +52,15 @@ def sortUsuario():
     docs = session.execute(" SELECT * FROM usuario")
     usuarios = []
     for obj in docs:
-        enderecos = []
+        enderecos, favoritos = [], []
         for endereco in session.execute(" SELECT * FROM endereco WHERE email_residente=%s", (obj.email)):
             enderecos.append(endereco)
-        for favorito in session.execute(" SELECT * FROM produtos WHERE id=(")
+        for favorito in session.execute(" SELECT * FROM favoritos WHERE email_usuario=%s", (obj.email)):
+            favoritos.append(session.execute(" SELECT * FROM produtos WHERE id_produto=%s", (favorito.id_produto)))
         usuario = {
             usuario: obj
             enderecos: enderecos
-            favoritos:
+            favoritos: favoritos
         }
         objetos.append(obj)
     return objetos
@@ -91,16 +90,14 @@ def updateUsuario():
     
 
 def deleteUsuario():
-    from compras_crud import search
-    global db
-    col = db.usuario
-    usuarios = search(sortUsuario())
-    escolha = int(input("usuario a deletar: "))
-    usuario = usuarios[escolha]
-    conR.set(usuario["email"], pickle.dumps(usuario))
-    conR.expire(usuario["email"], 7200)
-    query = { "_id": usuario["_id"] }
-    col.delete_one(query)
+    usuarios = sortUsuario()
+    for index in usuarios:
+        print(str(index) + ":  " + str(usuarios[index]))
+    usuario = usuarios[int(input("Escolha o usuario a deletar: "))]
+    session.execute("DELETE FROM usuario WHERE email=s%", (usuario.email))
+    session.execute("DELETE FROM endereco WHERE email_residente=s%", (usuario.email))
+    session.execute("DELETE FROM favoritos WHERE email_usuario=s%", (usuario.email))
+
 
 
 def updateFavorito(usuario):
@@ -125,17 +122,9 @@ def updateFavorito(usuario):
     elif escolha == '3':
         for index in range(len(favoritos)):
             print(str(index) + ':' + str(favoritos[index]))
-        favoritos.pop(int(input("Escolha o produto para remover: ")))
+        favorito = favoritos[(int(input("Escolha o produto para remover: ")))]
+        session.execute("DELETE FROM favoritos WHERE id=s%", (favorito.id))
     query = { "_id": usuario["_id"]}
     toUpdate = {"$set":{ "favoritos": favoritos}}
     col.update_one(query, toUpdate)
 
-#insertUsuario()
-#deleteUsuario()
-#restaurarUsuario()
-#updateUsuario()
-# syincRedisFav()
-# for i in conR.lrange("pamonha123@gmail.com-favoritos", 0, -1):
-#     print(pickle.loads(i))
-#print(conR.exists("pamonha123@gmail.com-favoritos"))
-#syincMongoFav()
