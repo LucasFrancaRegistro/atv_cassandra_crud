@@ -1,126 +1,115 @@
-import pymongo
-client = pymongo.MongoClient("mongodb+srv://programa:o5ma5JcTMMNPbydk@cluster0.ephuxat.mongodb.net/?retryWrites=true&w=majority")
-database = client.test
-import redis
-conR = redis.Redis(host='redis-10721.c261.us-east-1-4.ec2.cloud.redislabs.com',
-                  port=10721,
-                  password='123senha')
-import pickle
+import uuid
+from cassandra_connect import cluster
 
-global db
-db = client.mercadolivre
+session = cluster.connect()
 
-def insertVendedor():
-    from usuario_crud import createEndereco
-    global db
-    col = db.vendedor
-    nome = input('nome do vendedor: ')
-    email = input('email do vendedor: ')
-    cpf = input('cpf do vendedor: ')
-    enderecos = []
-    while True:
-        enderecos.append(createEndereco())
-        resposta = input('quer adicionar outro endereço? (y/n) ')
-        if resposta == 'n':
-            break
-    doc = {"nome": nome,
-        "email": email,
-        "cpf": cpf,
-        'endereço': enderecos,
-        'produtos': []
-        }
-    x = col.insert_one(doc)
-    print(x.inserted_id)
 
-def sortVendedor():
-    global db
-    col = db.vendedor
-    docs = col.find().sort('nome')
-    objetos = []
-    for obj in docs:
-        objetos.append(obj)
-    return objetos
+def insert_vendedor(session, nome,sobrenome,email):
+  id = uuid.uuid4()
+  session.execute("INSERT INTO vendedores (id, sobrenome, email, nome) VALUES (%s,%s,%s,%s)", [id, sobrenome, email, nome])
 
-def updateVendedor():
-    from usuario_crud import updateEndereco
-    from compras_crud import search
-    global db
-    col = db.vendedor
-    vendedores = search(sortVendedor())
-    vendedor = vendedores[int(input("Escolha o vendedor que deseja editar: "))]
-    print('''O que deseja editar? 
-    Nome
-    Email
-    Cpf
-    Endereço
-    Produtos''')
-    escolha = input("Escreva a sua opção: ").lower()
-    if escolha == "endereço":
-        updateEndereco(vendedor)
-    elif escolha == "produtos":
-        updateVendedorProdutos(vendedor)
+def insert_relacao(session,email,produto):
+  id = uuid.uuid4()
+  session.execute("INSERT INTO produtos_vendedor (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
+
+def find_vendedores():
+  result = session.execute("SELECT * FROM vendedores")
+  return result
+
+def delete_vendedor(session,email):
+    id_result = session.execute("SELECT id FROM vendedores WHERE email = %s", [email])
+    id = id_result.one().id if id_result else None
+    if id:
+        prepared = session.prepare("DELETE FROM vendedores WHERE id = ?")
+        session.execute(prepared, [id])
     else:
-        valor = input("valor novo ")
-        toUpdate = { "$set": { escolha: valor} }
-        query = { "_id": vendedor["_id"]}
-        col.update_one(query, toUpdate)
+        print("Vendedor não encontrado.")
 
-def updateVendedorProdutos(vendedor):
-    from compras_crud import search
-    from produto_crud import sortProduto
-    global db
-    col = db.vendedor
-    vendaProdutos = vendedor["produtos"]
-    print('''O que deseja fazer?
-    1:  Adicinar aos produtos vendidos
-    2:  Remover dos produtos vendidos''')
-    escolha = input('Escolha uma opção: ')
-    if escolha == '1':
-        produtos = search(sortProduto())
-        produto = produtos[int(input("escolha o produto que quer adicionar: "))]
-        del produto["vendedor"]
-        vendaProdutos.append(produto)
-    elif escolha == '2':
-        for index in range(len(vendaProdutos)):
-            print(str(index) + ':' + str(vendaProdutos[index]))
-        vendaProdutos.pop(int(input("Escolha o produto para remover: ")))
-    query = { "_id": vendedor["_id"]}
-    toUpdate = {"$set":{ "produtos": vendaProdutos}}
-    col.update_one(query, toUpdate)
+def remover_relacao(session, email):
+    nome_result = session.execute("SELECT nome FROM vendedores WHERE email = %s", [email])
+    nome = nome_result.one().nome if nome_result else None
+    if nome:
+        print(f"Vendedor: {nome}")
+        favoritos = session.execute("SELECT * FROM produtos_vendedor WHERE email = %s", [email])
+        posicao = 1
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+        chave = True
+        while chave:
+            produtoNome = input("Produto a remover: ")
+            chave = (input("Deseja remover outro produto? (s/n): ") == 's')
+            id_result = session.execute("SELECT id FROM produtos_vendedor WHERE email = %s AND produto = %s", [email, produtoNome])
+            id = id_result.one().id if id_result else None
+            if id:
+                prepared = session.prepare("DELETE FROM produtos_vendedor WHERE id = ?")
+                session.execute(prepared, [id])
+            else:
+                print("Relação não encontrada.")
+    else:
+        print("Vendedor não encontrado.")
 
-def deleteVendedor():
-    from compras_crud import search
-    global db
-    col = db.vendedor
-    vendedores = search(sortVendedor())
-    escolha = int(input("Vendedor a deletar: "))[vendedores[escolha]["_id"]]
-    query = { "_id": vendedor['_id'] }
-    col.delete_one(query)
+def cadastro_vendedor():
+    nome = input("Nome: ")
+    sobrenome = input("Sobrenome: ")
+    email = input("Email: ")
+    insert_vendedor(session, nome, sobrenome, email)
 
-def syncRedisVendEnd():
-    from compras_crud import search
-    vendedores = search(sortVendedor())
-    vendedor = vendedores[int(input("Escolha o vendedor: "))]
-    enderecos = vendedor["endereço"]
-    if conR.exists(vendedor["email"]+"-endereco") > 0:
-        conR.delete(vendedor["email"]+"-endereco")
-    for endereco in enderecos:
-        conR.lpush(vendedor["email"]+"-endereco", pickle.dumps(endereco))
+def pega_vendedores():
+    vendedores = find_vendedores()
+    for vendedor in vendedores:
+        print("Nome: " + str(vendedor.nome))
+        print("Sobrenome: " + str(vendedor.sobrenome))
+        print("Email: " + str(vendedor.email))
+        posicao = 1
+        produtos = vendedor.produtos
+        if produtos is not None:
+            print("Vende esses produtos: ")
+            for produto in produtos:
+                nome = produto.get("nome", "")
+                print(f"0{posicao} - Nome do produto: {nome}")
+                posicao += 1
+        print("Relação com produtos: ")
+        pega_relacao(vendedor.email)
 
-def syncMongoVendEnd():
-    from compras_crud import search
-    global db
-    col = db.vendedor
-    vendedores = search(sortVendedor())
-    vendedor = vendedores[int(input("Escolha o vendedor: "))]
-    enderecosMongo = []
-    enderecosRedis = conR.lrange(vendedor["email"]+"-enderecos", 0, -1)
-    for endereco in enderecosRedis:
-        enderecosMongo.append(pickle.loads(endereco))
-    query = { "_id": vendedor["_id"]}
-    toUpdate = {"$set":{ "endereço": enderecosMongo}}
-    col.update_one(query, toUpdate)
+def pega_relacao(email):
+        posicao = 1
+        favoritos = session.execute("SELECT * FROM produtos_vendedor WHERE email = %s", [email])
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
 
-#deleteVendedor()
-#insertVendedor()
-#updateVendedor()
+def atualizar_vendedor():
+    email = input("Email do vendedor a atualizar: ")
+    row = session.execute("SELECT id FROM vendedores WHERE email = %s", [email]).one()
+    if not row:
+        print("Vendedor não encontrado.")
+        voltar_opcoes()
+    user_id = row.id
+    print("Quais campos deseja atualizar?")
+    print("01 - Nome")
+    print("02 - Sobrenome")
+    print("03 - Email")
+    campos = input("Quais campos? (exemplo: 01,02,03): ")
+    campos = campos.split(",")
+    for campo in campos:
+        campo = int(campo)
+        if campo == 1:
+            nome = input("Novo nome: ")
+            session.execute("UPDATE vendedores SET nome = %s WHERE id = %s", [nome, user_id])
+        elif campo == 2:
+            sobrenome = input("Novo sobrenome: ")
+            session.execute("UPDATE vendedores SET sobrenome = %s WHERE id = %s", [sobrenome, user_id])
+        elif campo == 3:
+            novo_email = input("Novo email: ")
+            session.execute("UPDATE vendedores SET email = %s WHERE id = %s", [novo_email, user_id])
+
+
+def adicionar_relacao():
+    cadastrar_itens("relacao", "Nome do produto: ", "Deseja adicionar outro produto? (s/n): ")
+
+
