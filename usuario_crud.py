@@ -123,4 +123,5 @@ def atualizar_usuario():
             session.execute("UPDATE usuarios SET email = %s WHERE id = %s", [novo_email, user_id])
 
 def cadastrar_favoritos():
+    from compras_crud import cadastrar_itens
     cadastrar_itens("favoritos", "Nome do produto favoritado: ", "Deseja adicionar outro favorito? (s/n): ")

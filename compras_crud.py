@@ -1,25 +1,58 @@
-import pymongo
-import pickle
-client = pymongo.MongoClient("mongodb+srv://programa:o5ma5JcTMMNPbydk@cluster0.ephuxat.mongodb.net/?retryWrites=true&w=majority")
-database = client.test
-import redis
-conR = redis.Redis(host='redis-10721.c261.us-east-1-4.ec2.cloud.redislabs.com',
-                  port=10721,
-                  password='123senha')
+import uuid
+from cassandra_connect import cluster
+
+session = cluster.connect()
 
 
-global db
-db = client.mercadolivre
+def insert_compras(session,email,produto):
+  id = uuid.uuid4()
+  session.execute("INSERT INTO compras (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
 
-def search(objetos):
-    for obj_index in range(len(objetos)):
-        print(str(obj_index) + ':  ' + str(objetos[obj_index]))
-    return objetos
+def find_compras():
+  result = session.execute("SELECT * FROM compras;")
+  return result
 
-def searchNomes(objetos):
-    for obj_index in range(len(objetos)):
-        print(str(obj_index) + ':  ' + objetos[obj_index]['nome'])
-    return objetos
+def delete_compra(session, email):
+    nome_result = session.execute("SELECT nome FROM usuarios WHERE email = %s", [email])
+    nome = nome_result.one().nome if nome_result else None
+    if nome:
+        print(f"Cliente: {nome}")
+        compras = session.execute("SELECT * FROM compras WHERE email = %s", [email])
+        posicao = 1
+        for compra in compras:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [compra.produto]).one().preco
+            nome = compra.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+        chave = True
+        while chave:
+            produtoNome = input("Produto a excluir: ")
+            chave = (input("Deseja excluir outro produto? (s/n): ") == 's')
+            id_result = session.execute("SELECT id FROM compras WHERE email = %s AND produto = %s", [email, produtoNome])
+            id = id_result.one().id if id_result else None
+            if id:
+                prepared = session.prepare("DELETE FROM compras WHERE id = ?")
+                session.execute(prepared, [id])
+                return
+            else:
+                print("Compra não encontrada.")
+    else:
+        print("Usuário não encontrado.")
+
+def pega_compras():
+    clientes = find_clientes()
+    for cliente in clientes:
+        print(f'Cliente: {cliente.nome}')
+        posicao = 1
+        total = 0  
+        compras = session.execute("SELECT * FROM compras WHERE email = %s", [cliente.email])
+        for compra in compras:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [compra.produto]).one().preco
+            nome = compra.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            total += float(preco.replace(",", "."))
+            posicao += 1
+    print(f"Total: R${str(total).replace('.', ',')}")
 
 def showCompras(objetos):
     for i in range(len(objetos)):
@@ -29,83 +62,30 @@ def showCompras(objetos):
             "vendedor": objetos[i]["vendedor"]["nome"],
             "produto": objetos[i]["produto"]["nome"]}))
 
-def insertCompra():
-    from usuario_crud import sortUsuario
-    from vendedor_crud import sortVendedor
-    global db
-    col = db.compras
-    data = input("Insira a data da compra: ")
-    usuario = searchNomes(sortUsuario())[int(input("Usuario da compra: "))]
-    del usuario["favoritos"]
-    vendedor = searchNomes(sortVendedor())[int(input("Vendedor do produto: "))]
-    produto = searchNomes(vendedor["produtos"])[int(input("Produto comprado: "))]
-    doc = {"data": data,
-        "usuario": usuario,
-        "produto": produto,
-        "vendedor": vendedor}
-    col.insert_one(doc)
+def cadastrar_itens(tipo, mensagem, opcao):
+    from produto_crud import pega_produtos, find_produtos
+    from usuario_crud import insert_favoritos
+    from vendedor_crud import insert_relacao
+    email = input("Email do usuário: ")
+    print('')
+    print("Produtos disponíveis:")
+    pega_produtos()
+    itensNome = []
+    chave = True
+    while chave:
+        itemNome = input(mensagem)
+        itensNome.append(itemNome)
+        chave = (input(opcao) == 's')
+    produtos = find_produtos()
+    for produto in produtos:
+        for itemNome in itensNome:
+            if produto.nome == itemNome:
+                if tipo == "compras":
+                    insert_compras(session, email, produto.nome)
+                elif tipo == "favoritos":
+                    insert_favoritos(session, email, produto.nome)
+                elif tipo == "relacao":
+                    insert_relacao(session, email, produto.nome)
 
-def sortCompras():
-    global db
-    col = db.compras
-    docs = col.find()
-    objetos = []
-    for obj in docs:
-        objetos.append(obj)
-    return objetos
-
-def updateCompra():
-    from produto_crud import sortProduto
-    from usuario_crud import sortUsuario
-    from vendedor_crud import sortVendedor
-    global db
-    col = db.compras
-    compras = sortCompras()
-    showCompras(compras)
-    compra = compras[int(input("Escolha a compra que deseja editar: "))]
-    print('''O que você deseja editar?
-    Data
-    Usuario
-    Produto
-    Vendedor''')
-    escolha = input("Escreva sua opção: ").lower()
-    if escolha == 'usuario':
-        usuarios = search(sortUsuario())
-        usuario = usuarios[int(input('Escolha o usuario que deseja atribuir a compra: '))]
-        del usuario["favoritos"]
-        valor = usuario
-    elif escolha == 'produto':
-        produtos = search(sortProduto())
-        produto = produtos[int(input('Escolha o produto ue deseja atribuir a compra: '))]
-        del produto["vendedor"]
-        valor = produto
-    elif escolha == 'vendedor':
-        vendedores = search(sortVendedor())
-        valor = vendedores[int(input('Escolha o vendedor ue deseja atribuir a compra: '))]
-    toUpdate = { "$set": { escolha: valor} }
-    query = { "_id": compra["_id"]}
-    col.update_one(query, toUpdate)
-
-
-def deleteCompra():
-    global db
-    col = db.compras
-    compras = search(sortCompras())
-    escolha = int(input("Compra a deletar: "))
-    compra = compras[escolha]["_id"]
-    query = { "_id": compra }
-    col.delete_one(query)
-
-
-# print(search(sortCompras()))
-# showCompras(sortCompras())
-#def syncMongo():
-# for i in conR.lrange("teste", 0, -1):
-#     print(i)
-# conR.lpush("teste", "teste")
-# conR.lpush("teste", "teste2")
-# print(conR.lrange("teste", 0, -1))
-#insertCompra()
-#search(sortUsuario())
-#deleteCompra()
-#updateCompra()
+def cadastrar_compras():
+    cadastrar_itens("compras", "Nome do produto comprado: ", "Deseja adicionar outra compra? (s/n): ")

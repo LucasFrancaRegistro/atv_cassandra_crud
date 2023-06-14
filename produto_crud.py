@@ -1,67 +1,60 @@
-import pymongo
-client = pymongo.MongoClient("mongodb+srv://programa:o5ma5JcTMMNPbydk@cluster0.ephuxat.mongodb.net/?retryWrites=true&w=majority")
-database = client.test
-#print(db)
+import uuid
+from cassandra_connect import cluster
 
-global db
-db = client.mercadolivre
+session = cluster.connect()
 
-def insertProduto():
-    from compras_crud import search
-    from vendedor_crud import sortVendedor
-    global db
-    col = db.produtos
-    nome = input('nome do produto: ')
-    quantidade = int(input('quantidade de produtos: '))
-    preco = int(input('preço do produto: '))
-    foto = input('link da foto do produto: ')
-    vendedores = search(sortVendedor())
-    escolha = int(input("Escolha o vendedor: "))
-    vendedor = vendedores[escolha]
-    del vendedor["produtos"]
-    doc = {"nome": nome,
-        "quantidade": quantidade,
-        "preço": preco,
-        "vendedor": vendedor,
-        "foto": foto}
-    col.insert_one(doc)
+def insert_produtos(session,nome,quantia,preco):
+  id = uuid.uuid4()
+  session.execute("INSERT INTO produtos (id, preco, quantia, nome) VALUES (%s,%s,%s,%s)", [id, preco, quantia, nome])
 
-def updateProduto():
-    from compras_crud import search
-    from vendedor_crud import sortVendedor
-    global db
-    col = db.produtos
-    produtos = search(sortProduto())
-    escolha = int(input("produto a editar: "))
-    produto = produtos[escolha]
-    campo = input("campo para editar: ")
-    if campo == "vendedor":
-        vendedores = search(sortVendedor())
-        escolha = int(input("Escolha o vendedor: "))
-        vendedor = vendedores[escolha]
-        del vendedor["produtos"]
-        valor = vendedor
-    else:   valor = input("valor novo ")
-    toUpdate = { "$set": { campo: valor} }
-    col.update_one(produto, toUpdate)
 
-def sortProduto():
-    global db
-    col = db.produtos
-    docs = col.find().sort('nome')
-    objetos = []
-    for obj in docs:
-        objetos.append(obj)
-    return objetos
+def find_produtos():
+  result = session.execute("SELECT * FROM produtos")
+  return result
 
-def deleteProduto():
-    from compras_crud import search
-    global db
-    col = db.produtos
-    produto = search(sortProduto())[int(input("Escolha o produto a deletar: "))]
-    query = { "_id": produto["_id"]}
-    col.delete_one(query)
+def delete_produto(session,nome):
+    id_result = session.execute("SELECT id FROM produtos WHERE nome = %s", [nome])
+    id = id_result.one().id if id_result else None
+    if id:
+        prepared = session.prepare("DELETE FROM produtos WHERE id = ?")
+        session.execute(prepared, [id])
+    else:
+        print("Produto não encontrado.")
 
-# deleteProduto()
-# insertProduto()
-#updateProduto()
+def cadastro_produto():
+    nome = input("Nome: ")
+    valor  = input("Valor: ")
+    quantia = input("Quantia em estoque: ")
+
+def pega_produtos():
+    produtos = find_produtos()
+    for produto in produtos:
+        print("Nome: " + produto.nome)
+        print("Preço: " + produto.preco)
+        print("Quantia disponível: " + produto.quantia)
+        print("")
+
+def atualizar_produto():
+    nome = input("Nome do produto a atualizar: ")
+    row = session.execute("SELECT id FROM produtos WHERE nome = %s", [nome]).one()
+    if not row:
+        print("Produto não encontrado.")
+        return
+    id_prod = row.id
+    print("Quais campos deseja atualizar?")
+    print("01 - Nome")
+    print("02 - Valor")
+    print("03 - Quantia")
+    campos = input("Quais campos? (exemplo: 01,02,03): ")
+    campos = campos.split(",")
+    for campo in campos:
+        campo = int(campo)
+        if campo == 1:
+            nome = input("Novo nome: ")
+            session.execute("UPDATE produtos SET nome = %s WHERE id = %s", [nome, id_prod])
+        elif campo == 2:
+            preco = input("Novo valor: ")
+            session.execute("UPDATE produtos SET preco = %s WHERE id = %s", [preco, id_prod])
+        elif campo == 3:
+            quantia = input("Nova quantia: ")
+            session.execute("UPDATE produtos SET quantia = %s WHERE id = %s", [quantia, id_prod])

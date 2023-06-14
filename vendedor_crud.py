@@ -88,7 +88,7 @@ def atualizar_vendedor():
     row = session.execute("SELECT id FROM vendedores WHERE email = %s", [email]).one()
     if not row:
         print("Vendedor não encontrado.")
-        voltar_opcoes()
+        return
     user_id = row.id
     print("Quais campos deseja atualizar?")
     print("01 - Nome")
@@ -110,6 +110,7 @@ def atualizar_vendedor():
 
 
 def adicionar_relacao():
+    from compras_crud import cadastrar_itens
     cadastrar_itens("relacao", "Nome do produto: ", "Deseja adicionar outro produto? (s/n): ")
 
 
