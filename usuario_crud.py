@@ -57,7 +57,7 @@ def deletar_favorito(session, email):
     else:
         print("Usuário não encontrado.")
 
-def adastro_usuario():
+def cadastro_usuario():
     nome = input("Nome: ")
     sobrenome = input("Sobrenome: ")
     email = input("Email: ")

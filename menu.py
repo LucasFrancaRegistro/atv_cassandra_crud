@@ -1,7 +1,7 @@
-import pymongo
-client = pymongo.MongoClient("mongodb+srv://programa:o5ma5JcTMMNPbydk@cluster0.ephuxat.mongodb.net/?retryWrites=true&w=majority")
-database = client.test
 
+from tabelas import cluster
+
+session = cluster.connect()
 def main():
     while True:
         print('''Bem vindo ao central de banco de dados do Mercado Livre
@@ -36,44 +36,30 @@ def usuarioCRUD():
         2:  Listar usuarios
         3:  Atualizar usuario
         4:  Deletar usuario
-        5:  Restaurar usuario
-        6:  Sincronizar favoritos no Redis
-        7:  Sincronizar favoritos no Mongo
-        8:  Sincronizar endereços no Redis
-        9:  Sincronizar endereços no Mongo
+        5:  Adicionar Favoritos
+        6:  Remover Favoritos
         0:  sair''')
 
         escolha = input("Escolha uma opção: ")
         if escolha == '1':
-            from usuario_crud import insertUsuario
-            insertUsuario()
+            from usuario_crud import cadastro_usuario
+            cadastro_usuario()
         elif escolha == '2':
-            from usuario_crud import sortUsuario
-            usuarios = sortUsuario()
-            for usuario in usuarios:
-                print(str(usuario) + '''
-                ''')
+            from usuario_crud import pega_usuarios
+            pega_usuarios()
         elif escolha == '3':
-            from usuario_crud import updateUsuario
-            updateUsuario()
+            from usuario_crud import atualizar_usuario
+            atualizar_usuario()
         elif escolha == '4':
-            from usuario_crud import deleteUsuario
-            deleteUsuario()
-        elif escolha == "5":
-            from usuario_crud import restaurarUsuario
-            restaurarUsuario()
-        elif escolha == "6":
-            from usuario_crud import syincRedisFav
-            syincRedisFav()
-        elif escolha == "7":
-            from usuario_crud import syincMongoFav
-            syincMongoFav()
-        elif escolha == "8":
-            from usuario_crud import syncRedisUsuaEnd
-            syncRedisUsuaEnd()
-        elif escolha == "8":
-            from usuario_crud import syncMongoUsuaEnd
-            syncMongoUsuaEnd()
+            from usuario_crud import delete_usuario
+            delete_usuario()
+        elif escolha == '5':
+            from usuario_crud import cadastrar_favoritos
+            cadastrar_favoritos()
+        elif escolha == '6':
+            from usuario_crud import deletar_favorito
+            email = input("Email do usuário relacionado ao favorito: ")
+            deletar_favorito(session,email) 
         else:
             break
 
@@ -85,32 +71,31 @@ def vendedorCRUD():
         2:  Listar vendedores
         3:  Atualizar vendedor
         4:  Deletar vendedor
-        5:  Sincronizar endereços no Redis
-        6:  Sincronizar endereços no Mongo
+        5:  Adicionar relação com produto
+        6:  Remover relação com produto
         0:  sair''')
 
         escolha = input("Escolha uma opção: ")
         if escolha == '1':
-            from vendedor_crud import insertVendedor
-            insertVendedor()
+            from vendedor_crud import cadastro_vendedor
+            cadastro_vendedor()
         elif escolha == '2':
-            from vendedor_crud import sortVendedor
-            vendedores = sortVendedor()
-            for vendedor in vendedores:
-                print(str(vendedor) + '''
-                ''')
+            from vendedor_crud import pega_vendedores
+            pega_vendedores()
         elif escolha == '3':
-            from vendedor_crud import updateVendedor
-            updateVendedor()
+            from vendedor_crud import atualizar_vendedor
+            atualizar_vendedor()
         elif escolha == '4':
-            from vendedor_crud import deleteVendedor
-            deleteVendedor()
+            from vendedor_crud import delete_vendedor
+            email = input("Email do vendedor: ")
+            delete_vendedor(session,email)
         elif escolha == '5':
-            from vendedor_crud import syncRedisVendEnd
-            syncRedisVendEnd()
+            from vendedor_crud import adicionar_relacao
+            adicionar_relacao()
         elif escolha == '6':
-            from vendedor_crud import syncMongoVendEnd
-            syncMongoVendEnd()
+            from vendedor_crud import remover_relacao
+            email = input("Email do vendedor relacionado ao produto: ")
+            remover_relacao(session,email)
         else:
             break
 
@@ -126,20 +111,18 @@ def produtoCRUD():
 
         escolha = input("Escolha uma opção: ")
         if escolha == '1':
-            from produto_crud import insertProduto
-            insertProduto()
+            from produto_crud import cadastro_produto
+            cadastro_produto()
         elif escolha == '2':
-            from produto_crud import sortProduto
-            produtos = sortProduto()
-            for produto in produtos:
-                print(str(produto) + '''
-                ''')
+            from produto_crud import pega_produtos
+            pega_produtos()
         elif escolha == '3':
-            from produto_crud import updateProduto
-            updateProduto()
+            from produto_crud import atualizar_produto
+            atualizar_produto()
         elif escolha == '4':
-            from produto_crud import deleteProduto
-            deleteProduto()
+            from produto_crud import delete_produto
+            nome = input("Nome do produto: ")
+            delete_produto(session,nome)
         else:
             break
 
@@ -149,26 +132,20 @@ def comprasCRUD():
         
         1:  Inserir compra
         2:  Listar compras
-        3:  Atualizar compra
-        4:  Deletar compra
+        3:  Deletar compra
         0:  sair''')
 
         escolha = input("Escolha uma opção: ")
         if escolha == '1':
-            from compras_crud import insertCompra
-            insertCompra()
+            from compras_crud import cadastrar_compras
+            cadastrar_compras()
         elif escolha == '2':
-            from compras_crud import sortCompras
-            compras = sortCompras()
-            for compra in compras:
-                print(str(compra) + '''
-                ''')
+            from compras_crud import pega_compras
+            pega_compras()
         elif escolha == '3':
-            from compras_crud import updateCompra
-            updateCompra()
-        elif escolha == '4':
-            from compras_crud import deleteCompra
-            deleteCompra()
+            from compras_crud import delete_compra
+            email = input("Email do usuário relacionado à compra: ")
+            delete_compra(session,email)
         else:
             break
 
